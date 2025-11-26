@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "835662168538",
+    "project_id": "hala-bakeries-sales",
+    "storage_bucket": "hala-bakeries-sales.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:835662168538:android:a8b2acb5180e9100cd00e3",
+        "android_client_info": {
+          "package_name": "com.example.hala_bakeries_sales"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCn59RPCea2w4wFqJCEN03xRd1dPUnMOVE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
