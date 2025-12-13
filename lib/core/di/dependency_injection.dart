@@ -12,6 +12,7 @@ import 'package:hala_bakeries_sales/features/admin/data/repo/branch_stock_reposi
 import 'package:hala_bakeries_sales/features/employee/data/repo/transaction_repository.dart';
 import 'package:hala_bakeries_sales/features/admin/data/firebase_services/employee_firebase_service.dart';
 import 'package:hala_bakeries_sales/features/admin/data/repo/inventory_count_repository.dart';
+import 'package:hala_bakeries_sales/features/admin/logic/product_cubit/product_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -61,6 +62,16 @@ Future<void> setupDependencyInjection() async {
     () => InventoryCountRepository(firestore: getIt<FirebaseFirestore>()),
   );
 
-  // Cubits will be created on-demand in screens using BlocProvider
-  // No need to register them here as they have short lifecycles
+  // Register ProductCubit as singleton to prevent unnecessary reloads
+  // when navigating between screens
+  getIt.registerLazySingleton<ProductCubit>(
+    () => ProductCubit(
+      getIt<ProductRepository>(),
+      getIt<BranchStockRepository>(),
+      getIt<BranchRepository>(),
+    ),
+  );
+
+  // Other Cubits will be created on-demand in screens using BlocProvider
+  // as they have short lifecycles and screen-specific state
 }

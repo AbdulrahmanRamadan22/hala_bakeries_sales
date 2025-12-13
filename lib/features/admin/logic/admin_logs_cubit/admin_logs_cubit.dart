@@ -23,7 +23,8 @@ class AdminLogsCubit extends Cubit<AdminLogsState> {
   Future<void> loadInitialData({String? employeeId}) async {
     emit(state.copyWith(status: AdminLogsStatus.loading, selectedEmployeeId: employeeId));
     try {
-      final employees = await _employeeRepository.getEmployees();
+      // Fetch all users (admins and employees) for displaying names
+      final employees = await _employeeRepository.getAllUsers();
       final List<TransactionModel> transactions;
 
       if (employeeId == null || employeeId.isEmpty) {

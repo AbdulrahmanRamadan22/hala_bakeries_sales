@@ -20,9 +20,6 @@ class TransactionRepository {
         : transaction;
 
     await docRef.set(transactionToSave.toMap());
-    
-    // Note: Stock updates are now handled by BranchStockRepository
-    // so we don't update the 'products' collection here anymore.
   }
 
   Future<List<TransactionModel>> getTransactions() async {

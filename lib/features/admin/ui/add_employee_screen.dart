@@ -30,6 +30,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
     AppPermissions.canViewStock: true,
     AppPermissions.canViewLogs: true,
     AppPermissions.canDoInventoryCount: false,
+    AppPermissions.canViewAdminFeatures: false,
   };
 
   @override
@@ -82,6 +83,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                     controller: _emailController,
                     decoration: const InputDecoration(labelText: 'البريد الإلكتروني'),
                     keyboardType: TextInputType.emailAddress,
+                    maxLines: 1, // Ensure horizontal scrolling
                     validator: (value) {
                       if (value!.isEmpty) return 'مطلوب';
                       if (!value.contains('@')) return 'بريد إلكتروني غير صحيح';
@@ -117,6 +119,9 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                   const Text('الصلاحيات:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   ..._permissions.keys.map((key) {
+                    final isReadOnlyAdmin = _permissions[AppPermissions.canViewAdminFeatures] ?? false;
+                    final isEnabled = key == AppPermissions.canViewAdminFeatures || !isReadOnlyAdmin;
+
                     return CheckboxListTile(
                       title: Text(PermissionService.getPermissionName(key)),
                       subtitle: Text(
@@ -124,13 +129,25 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                         style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       value: _permissions[key],
-                      onChanged: (val) {
+                      onChanged: isEnabled ? (val) {
                         setState(() {
-                          _permissions[key] = val!;
+                          if (key == AppPermissions.canViewAdminFeatures) {
+                            _permissions[key] = val!;
+                            if (val == true) {
+                              // If enabling read-only admin, disable all other permissions
+                              for (var k in _permissions.keys) {
+                                if (k != AppPermissions.canViewAdminFeatures) {
+                                  _permissions[k] = false;
+                                }
+                              }
+                            }
+                          } else {
+                            _permissions[key] = val!;
+                          }
                         });
-                      },
+                      } : null,
                     );
-                  }),
+                  }).toList(),
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,

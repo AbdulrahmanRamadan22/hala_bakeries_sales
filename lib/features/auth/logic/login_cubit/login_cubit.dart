@@ -40,4 +40,20 @@ class LoginCubit extends Cubit<LoginState> {
       ));
     }
   }
+
+  Future<bool> checkIfAdmin(String email) async {
+    try {
+      return await _authRepository.checkIfAdmin(email);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _authRepository.sendPasswordResetEmail(email);
+    } catch (e) {
+      throw Exception('فشل إرسال بريد إعادة التعيين: ${e.toString()}');
+    }
+  }
 }

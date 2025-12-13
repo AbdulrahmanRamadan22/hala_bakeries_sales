@@ -27,7 +27,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   int _reorderLevel = 5;
 
   final List<String> _categories = ['مخبوزات', 'حلويات', 'مشروبات', 'أخرى'];
-  final List<String> _units = ['قطعة', 'كيلو', 'علبة'];
+  final List<String> _units = ['قطعة', 'حبة', 'كيلو', 'جرام', 'علبة', 'كرتونة', 'رغيف', 'صينية'];
 
   final _barcodeController = TextEditingController();
 

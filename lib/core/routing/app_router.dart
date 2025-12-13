@@ -24,6 +24,8 @@ import 'package:hala_bakeries_sales/features/employee/logic/stock_cubit/stock_cu
 import 'package:hala_bakeries_sales/features/admin/logic/admin_dashboard_cubit/admin_dashboard_cubit.dart';
 import 'package:hala_bakeries_sales/features/admin/logic/low_stock_cubit/low_stock_cubit.dart';
 import 'package:hala_bakeries_sales/features/admin/logic/inventory_count_cubit/inventory_count_cubit.dart';
+import 'package:hala_bakeries_sales/features/admin/logic/add_admin_cubit/add_admin_cubit.dart';
+import 'package:hala_bakeries_sales/features/admin/logic/change_password_cubit/change_password_cubit.dart';
 
 // Screens
 import 'package:hala_bakeries_sales/features/auth/ui/splash_screen.dart';
@@ -50,6 +52,8 @@ import 'package:hala_bakeries_sales/features/shared/ui/barcode_scanner_screen.da
 import 'package:hala_bakeries_sales/features/admin/ui/low_stock_screen.dart';
 import 'package:hala_bakeries_sales/features/admin/ui/inventory_count_screen.dart';
 import 'package:hala_bakeries_sales/features/admin/ui/inventory_count_report_screen.dart';
+import 'package:hala_bakeries_sales/features/admin/ui/add_admin_screen.dart';
+import 'package:hala_bakeries_sales/features/admin/ui/change_password_screen.dart';
 
 import '../../features/admin/logic/admin_logs_cubit/admin_logs_cubit.dart';
 import '../../features/admin/ui/admin_employee_logs_screen.dart';
@@ -138,10 +142,9 @@ class AppRouter {
         GoRoute(
           path: Routes.productList,
           builder: (context, state) {
-            final branchStockRepository = getIt<BranchStockRepository>();
-            return BlocProvider(
-              create: (context) =>
-                  ProductCubit(productRepository, branchStockRepository, branchRepository)..loadProducts(),
+            // Use singleton ProductCubit to prevent unnecessary reloads
+            return BlocProvider.value(
+              value: getIt<ProductCubit>(),
               child: const ProductListScreen(),
             );
           },
@@ -221,6 +224,26 @@ class AppRouter {
               },
             ),
           ],
+        ),
+
+        GoRoute(
+          path: Routes.addAdmin,
+          builder: (context, state) {
+            return BlocProvider(
+              create: (context) => AddAdminCubit(employeeRepository),
+              child: const AddAdminScreen(),
+            );
+          },
+        ),
+
+        GoRoute(
+          path: Routes.changePassword,
+          builder: (context, state) {
+            return BlocProvider(
+              create: (context) => ChangePasswordCubit(authRepository),
+              child: const ChangePasswordScreen(),
+            );
+          },
         ),
 
         GoRoute(

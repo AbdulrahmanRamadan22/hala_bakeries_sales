@@ -64,6 +64,7 @@ class ReceiveCubit extends Cubit<ReceiveState> {
 
   Future<void> submitBatch(String notes) async {
     if (state.cart.isEmpty) return;
+    if (state.status == ReceiveStatus.submitting) return;
 
     emit(state.copyWith(status: ReceiveStatus.submitting));
     try {

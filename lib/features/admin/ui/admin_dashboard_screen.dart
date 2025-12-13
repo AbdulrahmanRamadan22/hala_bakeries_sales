@@ -6,6 +6,9 @@ import 'package:hala_bakeries_sales/core/theming/app_colors.dart';
 import 'package:hala_bakeries_sales/features/admin/logic/admin_dashboard_cubit/admin_dashboard_cubit.dart';
 import 'package:hala_bakeries_sales/features/admin/logic/admin_dashboard_cubit/admin_dashboard_state.dart';
 import 'package:hala_bakeries_sales/core/routing/routes_string.dart';
+import 'package:hala_bakeries_sales/features/auth/data/repo/auth_repository.dart';
+import 'package:hala_bakeries_sales/core/permissions/permission_service.dart';
+import 'package:hala_bakeries_sales/core/di/dependency_injection.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -222,6 +225,116 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                
+                // Account Management Section (only for admins)
+                FutureBuilder(
+                  future: getIt<AuthRepository>().getCurrentUser(),
+                  builder: (context, snapshot) {
+                    final canEdit = snapshot.hasData && 
+                                    PermissionService.canEditAdminFeatures(snapshot.data!);
+                    
+                    if (!canEdit) {
+                      return const SizedBox.shrink();
+                    }
+                    
+                    return Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      AppColors.info,
+                                      AppColors.info.withOpacity(0.6),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'إدارة الحسابات',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Quick Action Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildQuickActionCard(
+                                context,
+                                'إضافة أدمن',
+                                Icons.person_add,
+                                AppColors.primaryGreen,
+                                () => context.push(Routes.addAdmin),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildQuickActionCard(
+                                context,
+                                'تغيير كلمة المرور',
+                                Icons.lock_reset,
+                                AppColors.warning,
+                                () => context.push(Routes.changePassword),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  },
+                ),
+                
+                // Main Menu Section
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              AppColors.primaryGreen,
+                              AppColors.lightGreen,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'القائمة الرئيسية',
+                        style: GoogleFonts.cairo(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _buildMenuTile(
                   context,
@@ -372,6 +485,79 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withOpacity(0.08),
+            color.withOpacity(0.03),
+          ],
+        ),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: color.withOpacity(0.2),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: color.withOpacity(0.25),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(icon, size: 28, color: color),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: GoogleFonts.cairo(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

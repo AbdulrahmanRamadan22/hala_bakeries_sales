@@ -6,6 +6,7 @@ import 'package:hala_bakeries_sales/core/theming/app_colors.dart';
 import 'package:hala_bakeries_sales/features/auth/logic/login_cubit/login_cubit.dart';
 import 'package:hala_bakeries_sales/features/auth/logic/login_cubit/login_state.dart';
 import 'package:hala_bakeries_sales/features/auth/data/models/user_model.dart';
+import 'package:hala_bakeries_sales/core/permissions/permission_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,6 +63,10 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             } else if (state.status == LoginStatus.success) {
               if (state.user?.role == UserRole.admin) {
+                context.go('/admin-dashboard');
+              } else if (state.user != null && 
+                         PermissionService.canViewAdminFeatures(state.user!)) {
+                // Employee with view admin features permission goes to admin dashboard
                 context.go('/admin-dashboard');
               } else {
                 context.go('/employee-dashboard');
@@ -124,10 +129,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: const Center(
-                              child: Icon(
-                                Icons.storefront_rounded,
-                                size: 50,
-                                color: AppColors.primaryGreen,
+                              child: Image(
+                                image: AssetImage('assets/hala_logo.png'),
+                                height: 60,
+                                width: 60,
                               ),
                             ),
                           ),
@@ -175,6 +180,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Username field with modern styling
                           TextField(
                             controller: _usernameController,
+                            maxLines: 1, // Ensure horizontal scrolling
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
                             style: GoogleFonts.cairo(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
@@ -356,6 +364,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
+                          
+                          // Forgot Password Button
+                          TextButton(
+                            onPressed: () {
+                              _showForgotPasswordDialog(context);
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.lock_reset,
+                                  size: 18,
+                                  color: AppColors.primaryGreen,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'نسيت كلمة المرور؟',
+                                  style: GoogleFonts.cairo(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primaryGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -365,6 +402,180 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  void _showForgotPasswordDialog(BuildContext context) {
+    final emailController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.info.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.lock_reset,
+                color: AppColors.info,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'إعادة تعيين كلمة المرور',
+              style: GoogleFonts.cairo(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور',
+              style: GoogleFonts.cairo(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              style: GoogleFonts.cairo(),
+              decoration: InputDecoration(
+                labelText: 'البريد الإلكتروني',
+                labelStyle: GoogleFonts.cairo(),
+                prefixIcon: const Icon(Icons.email_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppColors.primaryGreen,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'إلغاء',
+              style: GoogleFonts.cairo(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'الرجاء إدخال البريد الإلكتروني',
+                      style: GoogleFonts.cairo(),
+                    ),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+              
+              Navigator.pop(ctx);
+              
+              try {
+                // Check if user is admin before sending reset email
+                final isAdmin = await context.read<LoginCubit>().checkIfAdmin(email);
+                
+                if (!isAdmin) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'إعادة تعيين كلمة المرور متاحة للأدمنز فقط. الموظفين يجب أن يتواصلوا مع الأدمن.',
+                          style: GoogleFonts.cairo(),
+                        ),
+                        backgroundColor: AppColors.warning,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
+                  }
+                  return;
+                }
+                
+                await context.read<LoginCubit>().sendPasswordResetEmail(email);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'تم إرسال بريد إعادة تعيين كلمة المرور إلى $email',
+                        style: GoogleFonts.cairo(),
+                      ),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'فشل إرسال البريد: ${e.toString()}',
+                        style: GoogleFonts.cairo(),
+                      ),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Text(
+              'إرسال',
+              style: GoogleFonts.cairo(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

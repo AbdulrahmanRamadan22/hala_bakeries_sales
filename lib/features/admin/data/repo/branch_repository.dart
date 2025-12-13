@@ -22,6 +22,20 @@ class BranchRepository {
     }
   }
 
+  /// Get total count of active branches without fetching all data
+  Future<int> getBranchesCount() async {
+    try {
+      final snapshot = await _firestore
+          .collection('branches')
+          .where('isActive', isEqualTo: true)
+          .count()
+          .get();
+      return snapshot.count ?? 0;
+    } catch (e) {
+      throw Exception('Failed to get branches count: $e');
+    }
+  }
+
   Future<void> addBranch(BranchModel branch) async {
     try {
       await _firestore.collection('branches').doc(branch.id).set(branch.toMap());

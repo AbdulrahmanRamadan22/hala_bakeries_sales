@@ -44,6 +44,26 @@ class ProductRepository {
     }
   }
 
+  /// Get total count of active products without fetching all data
+  /// This is much faster than getProducts() for dashboard statistics
+  Future<int> getProductsCount() async {
+    try {
+      print('ProductRepository: Fetching products count...');
+      final snapshot = await _firestore
+          .collection('products')
+          .where('isActive', isEqualTo: true)
+          .count()
+          .get();
+      
+      final count = snapshot.count ?? 0;
+      print('ProductRepository: Total active products: $count');
+      return count;
+    } catch (e) {
+      print('ProductRepository ERROR getting count: $e');
+      throw Exception('Failed to get products count: $e');
+    }
+  }
+
   Future<void> addProduct(ProductModel product) async {
     try {
       await _firestore.collection('products').doc(product.id).set(product.toMap());
@@ -66,6 +86,31 @@ class ProductRepository {
       await _firestore.collection('products').doc(id).update({'isActive': false});
     } catch (e) {
       throw Exception('Failed to delete product: $e');
+    }
+  }
+
+  /// Add multiple products in a batch
+  /// Uses Firestore WriteBatch - limit is 500 operations per batch
+  Future<void> addProductsBatch(List<ProductModel> products) async {
+    try {
+      // Split into chunks of 500 to respect Firestore limits
+      final chunkSize = 500;
+      for (var i = 0; i < products.length; i += chunkSize) {
+        final end = (i + chunkSize < products.length) ? i + chunkSize : products.length;
+        final chunk = products.sublist(i, end);
+        
+        final batch = _firestore.batch();
+        
+        for (final product in chunk) {
+          final docRef = _firestore.collection('products').doc(product.id);
+          batch.set(docRef, product.toMap());
+        }
+        
+        await batch.commit();
+        print('ProductRepository: Committed batch of ${chunk.length} products');
+      }
+    } catch (e) {
+      throw Exception('Failed to add products batch: $e');
     }
   }
 

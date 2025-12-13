@@ -73,6 +73,67 @@ class AuthRepository {
     return null;
   }
 
+  /// Change password for current user
+  /// Requires re-authentication with old password first
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        throw Exception('لا يوجد مستخدم مسجل دخول');
+      }
+
+      // Re-authenticate user with current password
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+
+      // Update password
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        throw Exception('كلمة المرور الحالية غير صحيحة');
+      } else if (e.code == 'weak-password') {
+        throw Exception('كلمة المرور الجديدة ضعيفة جداً');
+      }
+      throw Exception(e.message ?? 'فشل تغيير كلمة المرور');
+    }
+  }
+
+  /// Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'فشل إرسال بريد إعادة التعيين');
+    }
+  }
+
+  /// Check if email belongs to an admin user
+  Future<bool> checkIfAdmin(String email) async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .where('role', isEqualTo: 'admin')
+          .limit(1)
+          .get();
+      
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> clearLocalUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_data');
+  }
+
   // Local Storage Helpers
   Future<void> saveUserLocally(UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
@@ -98,10 +159,5 @@ class AuthRepository {
       }
     }
     return null;
-  }
-
-  Future<void> clearLocalUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_data');
   }
 }

@@ -1,19 +1,21 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hala_bakeries_sales/features/auth/data/models/user_model.dart';
 
 class EmployeeFirebaseService {
   // No longer using Cloud Functions
   EmployeeFirebaseService();
 
-  /// إنشاء حساب موظف جديد باستخدام Secondary App
+  /// إنشاء حساب مستخدم جديد (موظف أو أدمن) باستخدام Secondary App
   /// هذا يسمح بإنشاء مستخدم جديد دون تسجيل خروج الأدمن
   Future<String> createEmployeeAccount({
     required String email,
     required String password,
     required String name,
     required String phone,
-    required String branchId,
+    String? branchId, // Optional for admins
+    UserRole role = UserRole.employee, // Default to employee
   }) async {
     FirebaseApp? secondaryApp;
     try {
@@ -40,8 +42,8 @@ class EmployeeFirebaseService {
         'name': name,
         'email': email,
         'phone': phone,
-        'role': 'employee',
-        'branchId': branchId,
+        'role': role.name, // Use the passed role (admin or employee)
+        'branchId': branchId, // Null for admins
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': FirebaseAuth.instance.currentUser?.uid,
         'isActive': true, // علامة لتفعيل الحساب

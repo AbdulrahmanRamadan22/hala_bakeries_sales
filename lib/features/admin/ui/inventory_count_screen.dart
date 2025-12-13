@@ -12,7 +12,6 @@ import 'package:hala_bakeries_sales/features/admin/logic/inventory_count_cubit/i
 import 'package:hala_bakeries_sales/features/admin/logic/inventory_count_cubit/inventory_count_state.dart';
 import 'package:hala_bakeries_sales/features/admin/data/models/inventory_count_item_model.dart';
 import 'package:hala_bakeries_sales/features/admin/data/repo/branch_repository.dart';
-import 'package:hala_bakeries_sales/features/admin/data/models/branch_model.dart';
 import 'package:hala_bakeries_sales/core/helper/number_input_formatter.dart';
 import 'package:hala_bakeries_sales/core/routing/routes_string.dart';
 
@@ -724,7 +723,7 @@ class _InventoryCountScreenState extends State<InventoryCountScreen> {
           TextField(
             controller: noteController,
             maxLines: 2,
-            textDirection: TextDirection.rtl,
+            textDirection: TextDirection.rtl, 
             textAlign: TextAlign.right,
             style: GoogleFonts.cairo(),
             decoration: InputDecoration(
@@ -924,8 +923,8 @@ class _InventoryCountScreenState extends State<InventoryCountScreen> {
           style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
         ),
         content: Text(
-          'هل أنت متأكد من إرسال الجرد؟ سيتم تحديث الرصيد الافتتاحي لليوم التالي.',
-          style: GoogleFonts.cairo(),
+          'هل أنت متأكد من إرسال الجرد؟\n\n⚠️ تنبيه هام: تأكد من تسجيل جميع التوالف واستلام البضاعة لهذا اليوم قبل الإرسال لتجنب حسابها كمبيعات بالخطأ.',
+          style: GoogleFonts.cairo(height: 1.5),
         ),
         actions: [
           TextButton(

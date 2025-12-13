@@ -289,7 +289,20 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
         'title': 'الجرد اليومي',
         'icon': Icons.inventory,
         'color': AppColors.primaryGreen,
-        'route': '/employee/inventory-count',
+        'onTap': () {
+          final now = DateTime.now();
+          // Allowed between 1 PM (13:00) and 3 PM (15:00)
+          if (now.hour >= 13 && now.hour < 15) {
+            context.push('/employee/inventory-count');
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('عفواً، الجرد متاح فقط من الساعة 1:00 م وحتى 3:00 م', style: GoogleFonts.cairo()),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        },
       });
     }
 
@@ -362,7 +375,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
           action['title'],
           action['icon'],
           action['color'],
-          () => context.push(action['route']),
+          action['onTap'] ?? () => context.push(action['route']),
         );
       }).toList(),
     );

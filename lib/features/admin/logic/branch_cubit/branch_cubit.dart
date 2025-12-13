@@ -9,7 +9,10 @@ class BranchCubit extends Cubit<BranchState> {
 
   BranchCubit(this._branchRepository) : super(const BranchState());
 
-  Future<void> loadBranches() async {
+  Future<void> loadBranches({bool forceRefresh = false}) async {
+    if (!forceRefresh && state.branches.isNotEmpty) {
+      return;
+    }
     emit(state.copyWith(status: BranchStatus.loading));
     try {
       final branches = await _branchRepository.getBranches();
@@ -31,7 +34,7 @@ class BranchCubit extends Cubit<BranchState> {
       await _branchRepository.addBranch(newBranch);
       
       // Reload branches to get fresh list
-      await loadBranches();
+      await loadBranches(forceRefresh: true);
     } catch (e) {
       emit(state.copyWith(status: BranchStatus.failure, errorMessage: 'فشل إضافة الفرع'));
     }
@@ -41,7 +44,7 @@ class BranchCubit extends Cubit<BranchState> {
     emit(state.copyWith(status: BranchStatus.loading));
     try {
       await _branchRepository.updateBranch(branch);
-      await loadBranches();
+      await loadBranches(forceRefresh: true);
     } catch (e) {
       emit(state.copyWith(status: BranchStatus.failure, errorMessage: 'فشل تحديث الفرع'));
     }
@@ -51,7 +54,7 @@ class BranchCubit extends Cubit<BranchState> {
     emit(state.copyWith(status: BranchStatus.loading));
     try {
       await _branchRepository.deleteBranch(id);
-      await loadBranches();
+      await loadBranches(forceRefresh: true);
     } catch (e) {
       emit(state.copyWith(status: BranchStatus.failure, errorMessage: 'فشل حذف الفرع'));
     }

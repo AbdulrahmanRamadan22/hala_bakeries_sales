@@ -30,9 +30,9 @@ class ReportCubit extends Cubit<ReportState> {
       final products = await _productRepository.getProducts();
       final productNames = {for (var p in products) p.id: p.name};
 
-      // Fetch employee names
-      final employees = await _employeeRepository.getEmployees();
-      final employeeNames = {for (var e in employees) e.id: e.name};
+      // Fetch all user names (admins and employees)
+      final users = await _employeeRepository.getAllUsers();
+      final employeeNames = {for (var u in users) u.id: u.name};
 
       emit(state.copyWith(
         status: ReportStatus.success,

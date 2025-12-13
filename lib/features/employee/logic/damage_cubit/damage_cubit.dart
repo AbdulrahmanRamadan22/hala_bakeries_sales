@@ -64,6 +64,7 @@ class DamageCubit extends Cubit<DamageState> {
 
   Future<void> submitBatch(String notes) async {
     if (state.cart.isEmpty) return;
+    if (state.status == DamageStatus.submitting) return;
 
     emit(state.copyWith(status: DamageStatus.submitting));
     try {

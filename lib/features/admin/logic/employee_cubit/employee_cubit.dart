@@ -7,7 +7,10 @@ class EmployeeCubit extends Cubit<EmployeeState> {
 
   EmployeeCubit(this._employeeRepository) : super(const EmployeeState());
 
-  Future<void> loadEmployees() async {
+  Future<void> loadEmployees({bool forceRefresh = false}) async {
+    if (!forceRefresh && state.employees.isNotEmpty) {
+      return;
+    }
     emit(state.copyWith(status: EmployeeStatus.loading));
     try {
       final employees = await _employeeRepository.getEmployees();
@@ -33,7 +36,7 @@ class EmployeeCubit extends Cubit<EmployeeState> {
         phone: "", // Optional, can be added later
         branchId: branchId,
       );
-      await loadEmployees();
+      await loadEmployees(forceRefresh: true);
     } catch (e) {
       emit(state.copyWith(status: EmployeeStatus.failure, errorMessage: e.toString()));
     }
@@ -51,19 +54,32 @@ class EmployeeCubit extends Cubit<EmployeeState> {
         branchId: branchId,
         permissions: permissions,
       );
-      await loadEmployees();
+      await loadEmployees(forceRefresh: true);
     } catch (e) {
       emit(state.copyWith(status: EmployeeStatus.failure, errorMessage: 'فشل تحديث بيانات الموظف'));
     }
   }
 
-  Future<void> resetPassword(String email) async {
+  Future<void> updateEmployeeName({
+    required String id,
+    required String name,
+  }) async {
+    emit(state.copyWith(status: EmployeeStatus.loading));
+    try {
+      await _employeeRepository.updateEmployeeName(id: id, name: name);
+      await loadEmployees(forceRefresh: true);
+    } catch (e) {
+      emit(state.copyWith(status: EmployeeStatus.failure, errorMessage: 'فشل تحديث اسم الموظف'));
+    }
+  }
+
+  Future<void> resetEmployeePassword(String email) async {
     emit(state.copyWith(status: EmployeeStatus.loading));
     try {
       await _employeeRepository.updateEmployeePassword(email: email);
       emit(state.copyWith(status: EmployeeStatus.success)); // Or a specific status for toast
       // Reloading isn't strictly necessary but good for consistency
-      await loadEmployees();
+      await loadEmployees(forceRefresh: true);
     } catch (e) {
       emit(state.copyWith(status: EmployeeStatus.failure, errorMessage: 'فشل إرسال بريد إعادة تعيين كلمة المرور'));
     }
@@ -73,7 +89,7 @@ class EmployeeCubit extends Cubit<EmployeeState> {
     emit(state.copyWith(status: EmployeeStatus.loading));
     try {
       await _employeeRepository.deleteEmployee(id);
-      await loadEmployees();
+      await loadEmployees(forceRefresh: true);
     } catch (e) {
       emit(state.copyWith(status: EmployeeStatus.failure, errorMessage: 'فشل حذف الموظف'));
     }

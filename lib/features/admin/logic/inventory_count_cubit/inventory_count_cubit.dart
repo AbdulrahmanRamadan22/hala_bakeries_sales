@@ -57,11 +57,70 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
       final existingCount = await _inventoryCountRepository.getTodayInventoryCount(branchId);
       
       if (existingCount != null) {
-        // Load existing count
+        print('🔄 Refreshing existing count data...');
+        // Refresh transaction data for existing count
+        final now = DateTime.now();
+        final startOfToday = DateTime(now.year, now.month, now.day);
+        final endDate = now;
+        
+        print('   Date range: $startOfToday to $endDate');
+        
+        final List<InventoryCountItem> refreshedItems = [];
+        
+        for (var item in existingCount.items) {
+          print('   Processing: ${item.productName} (${item.productId})');
+          
+          // Get current received quantity
+          final receivedTransactions = await _getTransactionsByType(
+            branchId: branchId,
+            productId: item.productId,
+            type: TransactionType.receive,
+            startDate: startOfToday,
+            endDate: endDate,
+          );
+          final receivedQuantity = receivedTransactions.fold<int>(
+            0,
+            (sum, t) => sum + t.quantity.toInt(),
+          );
+          print('      Received: $receivedQuantity (${receivedTransactions.length} transactions)');
+
+          // Get current damaged quantity
+          final damagedTransactions = await _getTransactionsByType(
+            branchId: branchId,
+            productId: item.productId,
+            type: TransactionType.damage,
+            startDate: startOfToday,
+            endDate: endDate,
+          );
+          final damagedQuantity = damagedTransactions.fold<int>(
+            0,
+            (sum, t) => sum + t.quantity.toInt(),
+          );
+          print('      Damaged: $damagedQuantity (${damagedTransactions.length} transactions)');
+
+          // Create refreshed item with updated transaction data
+          final refreshedItem = InventoryCountItem.create(
+            productId: item.productId,
+            productName: item.productName,
+            barcode: item.barcode,
+            unitPrice: item.unitPrice,
+            openingBalance: item.openingBalance,
+            receivedQuantity: receivedQuantity,
+            damagedQuantity: damagedQuantity,
+            actualQuantity: item.actualQuantity,
+            note: item.note,
+          );
+          
+          refreshedItems.add(refreshedItem);
+        }
+        
+        print('✅ Refresh complete. Items: ${refreshedItems.length}');
+        
+        // Load existing count with refreshed items
         emit(state.copyWith(
           status: InventoryCountStatus.loaded,
           currentCount: existingCount,
-          items: existingCount.items,
+          items: refreshedItems,
           canEdit: canEdit(existingCount, user),
         ));
         return;
@@ -69,25 +128,27 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
 
       // Load products for the branch
       final products = await _productRepository.getProducts();
-      final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
+      
+      // Get transactions from start of today to now
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      final endDate = now; // Current moment
 
       // Create items with calculated expected quantities
       final List<InventoryCountItem> items = [];
 
       for (var product in products) {
-        // Get opening balance (current stock before today)
+        // Get current stock (live value from system)
         final branchStock = await _branchStockRepository.getBranchStock(branchId, product.id);
-        final openingBalance = branchStock?.currentStock ?? 0;
+        final currentStock = branchStock?.currentStock ?? 0;
 
         // Get received quantity today
         final receivedTransactions = await _getTransactionsByType(
           branchId: branchId,
           productId: product.id,
           type: TransactionType.receive,
-          startDate: startOfDay,
-          endDate: endOfDay,
+          startDate: startOfToday,
+          endDate: endDate,
         );
         final receivedQuantity = receivedTransactions.fold<int>(
           0,
@@ -99,13 +160,18 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
           branchId: branchId,
           productId: product.id,
           type: TransactionType.damage,
-          startDate: startOfDay,
-          endDate: endOfDay,
+          startDate: startOfToday,
+          endDate: endDate,
         );
         final damagedQuantity = damagedTransactions.fold<int>(
           0,
           (sum, t) => sum + t.quantity.toInt(),
         );
+
+        // Calculate Opening Balance (Start of Day)
+        // Opening = Current - Received + Damaged
+        // This ensures that Expected (Opening + Received - Damaged) equals Current Stock
+        final openingBalance = currentStock - receivedQuantity + damagedQuantity;
 
         // Create item with actual quantity = 0 (to be filled by user)
         final item = InventoryCountItem.create(
@@ -135,6 +201,60 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
     }
   }
 
+  /// Helper to refresh items with latest transaction data
+  Future<List<InventoryCountItem>> _refreshItemsWithLatestTransactions(
+    List<InventoryCountItem> items,
+    String branchId,
+  ) async {
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final endDate = now;
+
+    final List<InventoryCountItem> refreshedItems = [];
+
+    for (var item in items) {
+      // Get current received quantity
+      final receivedTransactions = await _getTransactionsByType(
+        branchId: branchId,
+        productId: item.productId,
+        type: TransactionType.receive,
+        startDate: startOfToday,
+        endDate: endDate,
+      );
+      final receivedQuantity = receivedTransactions.fold<int>(
+        0,
+        (sum, t) => sum + t.quantity.toInt(),
+      );
+
+      // Get current damaged quantity
+      final damagedTransactions = await _getTransactionsByType(
+        branchId: branchId,
+        productId: item.productId,
+        type: TransactionType.damage,
+        startDate: startOfToday,
+        endDate: endDate,
+      );
+      final damagedQuantity = damagedTransactions.fold<int>(
+        0,
+        (sum, t) => sum + t.quantity.toInt(),
+      );
+
+      // Create refreshed item
+      refreshedItems.add(InventoryCountItem.create(
+        productId: item.productId,
+        productName: item.productName,
+        barcode: item.barcode,
+        unitPrice: item.unitPrice,
+        openingBalance: item.openingBalance,
+        receivedQuantity: receivedQuantity,
+        damagedQuantity: damagedQuantity,
+        actualQuantity: item.actualQuantity,
+        note: item.note,
+      ));
+    }
+    return refreshedItems;
+  }
+
   /// Get transactions by type and date range
   Future<List<TransactionModel>> _getTransactionsByType({
     required String branchId,
@@ -153,11 +273,15 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
 
       final transactions = snapshot.docs
           .map((doc) => TransactionModel.fromMap(doc.data(), doc.id))
-          .where((t) => t.timestamp.isAfter(startDate) && t.timestamp.isBefore(endDate))
+          .where((t) => 
+            (t.timestamp.isAfter(startDate) || t.timestamp.isAtSameMomentAs(startDate)) &&
+            (t.timestamp.isBefore(endDate) || t.timestamp.isAtSameMomentAs(endDate))
+          )
           .toList();
 
       return transactions;
     } catch (e) {
+      print('Error fetching transactions: $e');
       return [];
     }
   }
@@ -199,6 +323,12 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
+      // Refresh items with latest transaction data before saving
+      final refreshedItems = await _refreshItemsWithLatestTransactions(
+        state.items,
+        branchId,
+      );
+
       final count = InventoryCountModel.create(
         id: state.currentCount?.id ?? const Uuid().v4(),
         date: today,
@@ -208,7 +338,7 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
         employeeName: user.name,
         createdAt: state.currentCount?.createdAt ?? now,
         updatedAt: now,
-        items: state.items,
+        items: refreshedItems,
         notes: notes,
         status: 'draft',
       );
@@ -251,10 +381,14 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
         return;
       }
 
-
-
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
+      
+      // Refresh items with latest transaction data before saving
+      final refreshedItems = await _refreshItemsWithLatestTransactions(
+        state.items,
+        branchId,
+      );
 
       final count = InventoryCountModel.create(
         id: state.currentCount?.id ?? const Uuid().v4(),
@@ -265,7 +399,7 @@ class InventoryCountCubit extends Cubit<InventoryCountState> {
         employeeName: user.name,
         createdAt: state.currentCount?.createdAt ?? now,
         updatedAt: now,
-        items: state.items,
+        items: refreshedItems,
         notes: notes,
         status: 'completed',
       );

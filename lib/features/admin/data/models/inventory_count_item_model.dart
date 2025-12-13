@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
 /// Model for individual product count item in inventory count
@@ -66,7 +65,7 @@ class InventoryCountItem extends Equatable {
         note,
       ];
 
-  /// Create InventoryCountItem with calculations
+  /// Factory constructor with automatic calculations
   factory InventoryCountItem.create({
     required String productId,
     required String productName,
@@ -78,10 +77,24 @@ class InventoryCountItem extends Equatable {
     required int actualQuantity,
     String? note,
   }) {
-    final expected = openingBalance + receivedQuantity - damagedQuantity;
-    final variance = expected - actualQuantity;
-    final variancePercentage = expected == 0 ? 0.0 : (variance.abs() / expected) * 100;
-    final calculatedSales = variance > 0 ? variance : 0; // Only positive variance is sales
+    // Calculate expected quantity: opening + received - damaged
+    final expectedQuantity = openingBalance + receivedQuantity - damagedQuantity;
+    
+    // Calculate variance: expected - actual
+    final variance = expectedQuantity - actualQuantity;
+    
+    // Calculate variance percentage
+    final variancePercentage = expectedQuantity > 0 
+        ? (variance.abs() / expectedQuantity * 100).abs()
+        : 0.0;
+    
+    // Calculate sales: expected - actual (same as variance but represents sales)
+    final calculatedSales = variance;
+    
+    // Calculate values
+    final expectedValue = expectedQuantity * unitPrice;
+    final actualValue = actualQuantity * unitPrice;
+    final salesValue = calculatedSales * unitPrice;
     
     return InventoryCountItem(
       productId: productId,
@@ -91,15 +104,36 @@ class InventoryCountItem extends Equatable {
       openingBalance: openingBalance,
       receivedQuantity: receivedQuantity,
       damagedQuantity: damagedQuantity,
-      expectedQuantity: expected,
+      expectedQuantity: expectedQuantity,
       actualQuantity: actualQuantity,
       variance: variance,
       variancePercentage: variancePercentage,
       calculatedSales: calculatedSales,
-      expectedValue: expected * unitPrice,
-      actualValue: actualQuantity * unitPrice,
-      salesValue: calculatedSales * unitPrice,
+      expectedValue: expectedValue,
+      actualValue: actualValue,
+      salesValue: salesValue,
       note: note,
+    );
+  }
+
+  factory InventoryCountItem.fromMap(Map<String, dynamic> map) {
+    return InventoryCountItem(
+      productId: map['productId'] ?? '',
+      productName: map['productName'] ?? '',
+      barcode: map['barcode'] ?? '',
+      unitPrice: (map['unitPrice'] ?? 0).toDouble(),
+      openingBalance: map['openingBalance'] ?? 0,
+      receivedQuantity: map['receivedQuantity'] ?? 0,
+      damagedQuantity: map['damagedQuantity'] ?? 0,
+      expectedQuantity: map['expectedQuantity'] ?? 0,
+      actualQuantity: map['actualQuantity'] ?? 0,
+      variance: map['variance'] ?? 0,
+      variancePercentage: (map['variancePercentage'] ?? 0).toDouble(),
+      calculatedSales: map['calculatedSales'] ?? 0,
+      expectedValue: (map['expectedValue'] ?? 0).toDouble(),
+      actualValue: (map['actualValue'] ?? 0).toDouble(),
+      salesValue: (map['salesValue'] ?? 0).toDouble(),
+      note: map['note'],
     );
   }
 
@@ -122,27 +156,6 @@ class InventoryCountItem extends Equatable {
       'salesValue': salesValue,
       'note': note,
     };
-  }
-
-  factory InventoryCountItem.fromMap(Map<String, dynamic> map) {
-    return InventoryCountItem(
-      productId: map['productId'] ?? '',
-      productName: map['productName'] ?? '',
-      barcode: map['barcode'] ?? '',
-      unitPrice: (map['unitPrice'] ?? 0).toDouble(),
-      openingBalance: map['openingBalance'] ?? 0,
-      receivedQuantity: map['receivedQuantity'] ?? 0,
-      damagedQuantity: map['damagedQuantity'] ?? 0,
-      expectedQuantity: map['expectedQuantity'] ?? 0,
-      actualQuantity: map['actualQuantity'] ?? 0,
-      variance: map['variance'] ?? 0,
-      variancePercentage: (map['variancePercentage'] ?? 0).toDouble(),
-      calculatedSales: map['calculatedSales'] ?? 0,
-      expectedValue: (map['expectedValue'] ?? 0).toDouble(),
-      actualValue: (map['actualValue'] ?? 0).toDouble(),
-      salesValue: (map['salesValue'] ?? 0).toDouble(),
-      note: map['note'],
-    );
   }
 
   /// Copy with method for updating actual quantity

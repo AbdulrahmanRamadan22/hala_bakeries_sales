@@ -21,12 +21,14 @@ class EditEmployeeScreen extends StatefulWidget {
 }
 
 class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
+  final _nameController = TextEditingController();
   late String? _selectedBranchId;
   late Map<String, bool> _permissions;
 
   @override
   void initState() {
     super.initState();
+    _nameController.text = widget.employee.name;
     _selectedBranchId = widget.employee.branchId;
     _permissions = {
       AppPermissions.canReceiveGoods: widget.employee.permissions.contains(AppPermissions.canReceiveGoods),
@@ -34,7 +36,14 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
       AppPermissions.canViewStock: widget.employee.permissions.contains(AppPermissions.canViewStock),
       AppPermissions.canViewLogs: widget.employee.permissions.contains(AppPermissions.canViewLogs),
       AppPermissions.canDoInventoryCount: widget.employee.permissions.contains(AppPermissions.canDoInventoryCount),
+      AppPermissions.canViewAdminFeatures: widget.employee.permissions.contains(AppPermissions.canViewAdminFeatures),
     };
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
   }
 
   @override
@@ -98,11 +107,20 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Modern Info Card
+                      // Employee Name Section
+                      Text(
+                        'اسم الموظف:',
+                        style: GoogleFonts.cairo(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
                           color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: AppColors.info.withOpacity(0.2),
                             width: 1.5,
@@ -115,66 +133,57 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                             ),
                           ],
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.info.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: AppColors.info.withOpacity(0.2),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.person,
-                                  color: AppColors.info,
-                                  size: 32,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      widget.employee.name,
-                                      style: GoogleFonts.cairo(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.email_outlined,
-                                          size: 14,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            widget.employee.email,
-                                            style: GoogleFonts.cairo(
-                                              fontSize: 13,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                        child: TextFormField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(
+                              Icons.person,
+                              color: AppColors.info,
+                            ),
+                            hintText: 'أدخل اسم الموظف',
+                            hintStyle: GoogleFonts.cairo(
+                              color: AppColors.textSecondary,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
                           ),
+                          style: GoogleFonts.cairo(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Email Display (Read-only)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.textSecondary.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.email_outlined,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              widget.employee.email,
+                              style: GoogleFonts.cairo(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -271,6 +280,9 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                         child: Column(
                           children: _permissions.keys.map((key) {
                             final isLast = key == _permissions.keys.last;
+                            final isReadOnlyAdmin = _permissions[AppPermissions.canViewAdminFeatures] ?? false;
+                            final isEnabled = key == AppPermissions.canViewAdminFeatures || !isReadOnlyAdmin;
+
                             return Column(
                               children: [
                                 CheckboxListTile(
@@ -290,11 +302,22 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                                   ),
                                   value: _permissions[key],
                                   activeColor: AppColors.primaryGreen,
-                                  onChanged: (val) {
+                                  onChanged: isEnabled ? (val) {
                                     setState(() {
-                                      _permissions[key] = val!;
+                                      if (key == AppPermissions.canViewAdminFeatures) {
+                                        _permissions[key] = val!;
+                                        if (val == true) {
+                                          for (var k in _permissions.keys) {
+                                            if (k != AppPermissions.canViewAdminFeatures) {
+                                              _permissions[k] = false;
+                                            }
+                                          }
+                                        }
+                                      } else {
+                                        _permissions[key] = val!;
+                                      }
                                     });
-                                  },
+                                  } : null,
                                 ),
                                 if (!isLast)
                                   Divider(
@@ -315,17 +338,28 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             final selectedPermissions = _permissions.entries
                                 .where((e) => e.value)
                                 .map((e) => e.key)
                                 .toList();
 
-                            context.read<EmployeeCubit>().updateEmployee(
+                            // Update name if changed
+                            if (_nameController.text != widget.employee.name) {
+                              await context.read<EmployeeCubit>().updateEmployeeName(
+                                    id: widget.employee.id,
+                                    name: _nameController.text,
+                                  );
+                            }
+
+                            // Update branch and permissions
+                            await context.read<EmployeeCubit>().updateEmployee(
                                   id: widget.employee.id,
                                   branchId: _selectedBranchId ?? '',
                                   permissions: selectedPermissions,
-                                ).then((_) => context.pop());
+                                );
+                            
+                            if (mounted) context.pop();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryGreen,
@@ -468,7 +502,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                                           ),
                                           ElevatedButton(
                                             onPressed: () {
-                                              context.read<EmployeeCubit>().resetPassword(widget.employee.email);
+                                              context.read<EmployeeCubit>().resetEmployeePassword(widget.employee.email);
                                               Navigator.pop(ctx);
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(

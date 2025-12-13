@@ -1,3 +1,4 @@
+// State for Admin Dashboard
 import 'package:equatable/equatable.dart';
 
 enum AdminDashboardStatus { initial, loading, success, failure }
@@ -28,4 +29,22 @@ class AdminDashboardState extends Equatable {
         lowStockCount,
         errorMessage,
       ];
+
+  AdminDashboardState copyWith({
+    AdminDashboardStatus? status,
+    int? totalBranches,
+    int? totalEmployees,
+    int? totalProducts,
+    int? lowStockCount,
+    String? errorMessage,
+  }) {
+    return AdminDashboardState(
+      status: status ?? this.status,
+      totalBranches: totalBranches ?? this.totalBranches,
+      totalEmployees: totalEmployees ?? this.totalEmployees,
+      totalProducts: totalProducts ?? this.totalProducts,
+      lowStockCount: lowStockCount ?? this.lowStockCount,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
 }

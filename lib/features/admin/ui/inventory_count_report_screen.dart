@@ -1,7 +1,9 @@
+import 'dart:io';
+import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:hala_bakeries_sales/core/theming/app_colors.dart';
 import 'package:hala_bakeries_sales/core/di/dependency_injection.dart';
@@ -12,6 +14,8 @@ import 'package:hala_bakeries_sales/features/admin/data/repo/branch_repository.d
 import 'package:hala_bakeries_sales/features/admin/data/models/branch_model.dart';
 import 'package:hala_bakeries_sales/features/auth/data/repo/auth_repository.dart';
 import 'package:hala_bakeries_sales/features/auth/data/models/user_model.dart';
+import 'package:hala_bakeries_sales/features/admin/services/inventory_report_pdf_service.dart';
+import 'package:hala_bakeries_sales/features/admin/services/inventory_report_excel_service.dart';
 
 class InventoryCountReportScreen extends StatefulWidget {
   const InventoryCountReportScreen({super.key});
@@ -64,6 +68,47 @@ class _InventoryCountReportScreenState extends State<InventoryCountReportScreen>
             style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
           ),
           elevation: 0,
+          actions: [
+            BlocBuilder<InventoryReportCubit, InventoryReportState>(
+              builder: (context, state) {
+                if (state.reports.isEmpty) return const SizedBox.shrink();
+                
+                return PopupMenuButton<String>(
+                  icon: const Icon(Icons.download),
+                  tooltip: 'تصدير التقرير',
+                  onSelected: (value) {
+                    if (value == 'pdf') {
+                      _exportToPdf(context, state);
+                    } else if (value == 'excel') {
+                      _exportToExcel(context, state);
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    PopupMenuItem<String>(
+                      value: 'pdf',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.picture_as_pdf, color: AppColors.error, size: 20),
+                          const SizedBox(width: 8),
+                          Text('تصدير PDF', style: GoogleFonts.cairo()),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'excel',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.table_view, color: AppColors.success, size: 20),
+                          const SizedBox(width: 8),
+                          Text('تصدير Excel', style: GoogleFonts.cairo()),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
         body: BlocBuilder<InventoryReportCubit, InventoryReportState>(
           builder: (context, state) {
@@ -606,6 +651,96 @@ class _InventoryCountReportScreenState extends State<InventoryCountReportScreen>
                       ),
                     ),
                     IconButton(
+                      icon: const Icon(Icons.table_view, color: AppColors.success),
+                      tooltip: 'تصدير Excel',
+                      onPressed: () async {
+                        try {
+                          // Show loading indicator
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (ctx) => AlertDialog(
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'جاري إنشاء ملف Excel...',
+                                    style: GoogleFonts.cairo(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+
+                          // Generate Excel for single report
+                          final file = await InventoryReportExcelService.generateInventoryReportExcel([report]);
+
+                          // Close loading dialog
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close loading
+                            _handleExportedFile(context, file);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close loading
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('حدث خطأ: $e', style: GoogleFonts.cairo()),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.picture_as_pdf, color: AppColors.primaryGreen),
+                      tooltip: 'تصدير PDF',
+                      onPressed: () async {
+                        try {
+                          // Show loading indicator
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (ctx) => AlertDialog(
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'جاري إنشاء ملف PDF...',
+                                    style: GoogleFonts.cairo(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+
+                          // Generate PDF
+                          final file = await InventoryReportPdfService.generateInventoryCountPdf(report);
+
+                          // Close loading dialog
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close loading
+                            _handleExportedFile(context, file);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close loading
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('حدث خطأ: $e', style: GoogleFonts.cairo()),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.pop(context),
                     ),
@@ -708,5 +843,140 @@ class _InventoryCountReportScreenState extends State<InventoryCountReportScreen>
         ),
       ),
     );
+  }
+  
+  // Helper method to handle exported file (Open or Share)
+  Future<void> _handleExportedFile(BuildContext context, File file) async {
+    if (!context.mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('تم تصدير الملف بنجاح', style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+        content: Text('هل تريد فتح الملف أم مشاركته؟', style: GoogleFonts.cairo()),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Share.shareXFiles([XFile(file.path)], text: 'تقرير الجرد');
+            },
+            icon: const Icon(Icons.share),
+            label: Text('مشاركة', style: GoogleFonts.cairo()),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              OpenFile.open(file.path);
+            },
+            icon: const Icon(Icons.open_in_new),
+            label: Text('فتح', style: GoogleFonts.cairo()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('إغلاق', style: GoogleFonts.cairo(color: Colors.grey)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportToExcel(BuildContext context, InventoryReportState state) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'جاري إنشاء ملف Excel...',
+                style: GoogleFonts.cairo(),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Generate Excel
+      final file = await InventoryReportExcelService.generateInventoryReportExcel(state.reports);
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading
+        _handleExportedFile(context, file);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ: $e', style: GoogleFonts.cairo()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+  
+
+
+
+  Future<void> _exportToPdf(BuildContext context, InventoryReportState state) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'جاري إنشاء ملف PDF...',
+                style: GoogleFonts.cairo(),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Generate PDF
+      final file = await InventoryReportPdfService.generateMultipleReportsPdf(
+        state.reports,
+        state.startDate,
+        state.endDate,
+        state.selectedBranchId != null
+            ? _branches.firstWhere((b) => b.id == state.selectedBranchId).name
+            : null,
+      );
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+        _handleExportedFile(context, file);
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+        
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'حدث خطأ أثناء تصدير التقرير: $e',
+              style: GoogleFonts.cairo(),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 }

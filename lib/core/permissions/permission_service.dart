@@ -45,4 +45,18 @@ class PermissionService {
   static String getPermissionDescription(String permission) {
     return AppPermissions.permissionDescriptions[permission] ?? '';
   }
+
+  /// Check if user can view admin features (read-only access)
+  static bool canViewAdminFeatures(UserModel user) {
+    if (user.role == UserRole.admin) {
+      return true;
+    }
+    return user.permissions.contains(AppPermissions.canViewAdminFeatures);
+  }
+
+  /// Check if user can EDIT admin features (not just view)
+  static bool canEditAdminFeatures(UserModel user) {
+    // Only admins can edit
+    return user.role == UserRole.admin;
+  }
 }
